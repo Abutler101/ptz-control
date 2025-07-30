@@ -147,7 +147,6 @@ class PTZControlApp:
                 time.sleep(20)
 
         if self.ptz_controller and self.ptz_controller.connected:
-            self.connection_thread.join()
             self.status_label.config(text="Disconnected", foreground="red")
             self.connect_btn.config(text="Connect")
         else:
