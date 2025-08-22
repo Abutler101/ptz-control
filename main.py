@@ -1,9 +1,9 @@
 """
-TODO: Jog API
 TODO: Create Preset
 TODO: Delete Preset
 TODO: Jog Hotkeys
 TODO: Preset Hotkeys
+TODO: Movement based Tracking
 """
 
 import tkinter as tk
@@ -70,17 +70,17 @@ class PTZControlApp:
         jog_frame.pack(side="left", fill="both", expand=True, padx=5)
 
         ttk.Button(jog_frame, text="▲", width=4,
-                   command=lambda: self.jog_tilt(1)).grid(row=0, column=1, padx=5, pady=5)
+                   command=lambda: self.jog_tilt(-1)).grid(row=0, column=1, padx=5, pady=5)
 
         ttk.Button(jog_frame, text="◀", width=4,
-                   command=lambda: self.jog_pan(-1)).grid(row=1, column=0, padx=5, pady=5)
+                   command=lambda: self.jog_pan(1)).grid(row=1, column=0, padx=5, pady=5)
         ttk.Button(jog_frame, text="𝐇", width=4,
                    command=lambda: self.go_home()).grid(row=1, column=1, padx=5, pady=5)
         ttk.Button(jog_frame, text="▶", width=4,
-                   command=lambda: self.jog_pan(1)).grid(row=1, column=2, padx=5, pady=5)
+                   command=lambda: self.jog_pan(-1)).grid(row=1, column=2, padx=5, pady=5)
 
         ttk.Button(jog_frame, text="▼", width=4,
-                   command=lambda: self.jog_tilt(-1)).grid(row=2, column=1, padx=5, pady=5)
+                   command=lambda: self.jog_tilt(1)).grid(row=2, column=1, padx=5, pady=5)
 
         zoom_frame = ttk.Frame(jog_frame)
         zoom_frame.grid(row=3, column=0, columnspan=3, pady=(15, 0))
@@ -153,7 +153,7 @@ class PTZControlApp:
             self.connection_thread = threading.Thread(target=connect_thread, daemon=True).start()
 
     def jog_pan(self, direction: int):
-        # left=-1, right=1
+        # left=1, right=-1
         if self.ptz_controller:
             self.ptz_controller.move_pan(direction)
 

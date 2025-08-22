@@ -1,3 +1,14 @@
+"""
+For movement:
+each axis gets 4 sig fig hex value
+first 2 vals full 0-F range - changes to second val are very small steps
+For Zoom:
+gets 3 sig fig hex value
+first 2 vals full 0-F range - changes to second val are very small steps
+min zoom: hex 555 = 1365
+max zoom: hex FFF = 4095
+"""
+
 import requests
 
 from models import PTZPosition, PresetLocation
@@ -57,22 +68,57 @@ class PTZController:
         self.refresh_position()
 
     def move_pan(self, direction: int, speed: float = 1.0):
-        """Move pan left (-1) or right (1)"""
+        """Move pan left (1) or right (-1)"""
         if not self.connected:
             return
-        ...
+        target_pan: str
+        # If Direction is 1, Take step Left.
+        # If Direction is -1, Take step Right
+        target_pos_base_10 = int(self.current_position.pan + ((direction * 256) * speed)) + 2
+        raw_target_hex = hex(target_pos_base_10).replace("0x", "")
+        target_pan = (raw_target_hex[0:2] + "00").upper()
+        current_tilt_raw_hex = hex(self.current_position.tilt+1).replace("0x", "")
+        current_tilt = current_tilt_raw_hex.upper()
+
+        pan_str = f"APS{target_pan}{current_tilt}1D2"
+        move_response = requests.get(f"http://{self.ip_address}/cgi-bin/aw_ptz?cmd=%23{pan_str}&res=1")
+        if move_response.status_code != 200 or move_response.text.upper() != pan_str:
+            print(f"Failed to take Pan Step to {target_pan}")
+        self.refresh_position()
 
     def move_tilt(self, direction: int, speed: float = 1.0):
-        """Move tilt down (-1) or up (1)"""
+        """Move tilt down (1) or up (-1)"""
         if not self.connected:
             return
-        ...
+        target_tilt: str
+        # If Direction is 1, Take step Down.
+        # If Direction is -1, Take step Up
+        target_pos_base_10 = int(self.current_position.tilt + ((direction * 256) * speed)) + 2
+        raw_target_hex = hex(target_pos_base_10).replace("0x", "")
+        target_tilt = (raw_target_hex[0:2] + "00").upper()
+        current_pan_raw_hex = hex(self.current_position.pan+1).replace("0x", "")
+        current_pan = current_pan_raw_hex.upper()
+
+        tilt_str = f"APS{current_pan}{target_tilt}1D2"
+        move_response = requests.get(f"http://{self.ip_address}/cgi-bin/aw_ptz?cmd=%23{tilt_str}&res=1")
+        if move_response.status_code != 200 or move_response.text.upper() != tilt_str:
+            print(f"Failed to take Pan Step to {target_tilt}")
+        self.refresh_position()
 
     def move_zoom(self, direction: int, speed: float = 1.0):
         """Zoom out (-1) or in (1)"""
         if not self.connected:
             return
-        ...
+        target_zoom: str
+        target_pos_base_10 = int(self.current_position.zoom + ((direction * 16) * speed)) + 2
+        raw_target_hex = hex(target_pos_base_10).replace("0x", "")
+        target_zoom = (raw_target_hex[0:2] + "0").upper()
+
+        zoom_str = f"AXZ{target_zoom}"
+        zoom_response = requests.get(f"http://{self.ip_address}/cgi-bin/aw_ptz?cmd=%23{zoom_str}&res=1")
+        if zoom_response.status_code != 200 or zoom_response.text.upper() != zoom_str:
+            print(f"Failed to take Zoom Step to {target_zoom}")
+        self.refresh_position()
 
     def goto_preset(self, preset: PresetLocation):
         """Move to preset location"""
