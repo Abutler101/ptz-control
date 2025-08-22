@@ -15,6 +15,7 @@ import json
 import os
 
 from cam_controller import PTZController
+from holdable_button import HoldableButton
 from models import PresetLocation
 
 
@@ -69,18 +70,18 @@ class PTZControlApp:
         jog_frame = ttk.LabelFrame(control_frame, text="Jog Controls", padding=20)
         jog_frame.pack(side="left", fill="both", expand=True, padx=5)
 
-        ttk.Button(jog_frame, text="▲", width=4,
-                   command=lambda: self.jog_tilt(-1)).grid(row=0, column=1, padx=5, pady=5)
+        HoldableButton(jog_frame, text="▲", width=4,
+                   command=lambda: self.jog_tilt(-1), timeout=100).grid(row=0, column=1, padx=5, pady=5)
 
-        ttk.Button(jog_frame, text="◀", width=4,
-                   command=lambda: self.jog_pan(1)).grid(row=1, column=0, padx=5, pady=5)
+        HoldableButton(jog_frame, text="◀", width=4,
+                   command=lambda: self.jog_pan(1), timeout=100).grid(row=1, column=0, padx=5, pady=5)
         ttk.Button(jog_frame, text="𝐇", width=4,
                    command=lambda: self.go_home()).grid(row=1, column=1, padx=5, pady=5)
-        ttk.Button(jog_frame, text="▶", width=4,
-                   command=lambda: self.jog_pan(-1)).grid(row=1, column=2, padx=5, pady=5)
+        HoldableButton(jog_frame, text="▶", width=4,
+                   command=lambda: self.jog_pan(-1), timeout=100).grid(row=1, column=2, padx=5, pady=5)
 
-        ttk.Button(jog_frame, text="▼", width=4,
-                   command=lambda: self.jog_tilt(1)).grid(row=2, column=1, padx=5, pady=5)
+        HoldableButton(jog_frame, text="▼", width=4,
+                   command=lambda: self.jog_tilt(1), timeout=100).grid(row=2, column=1, padx=5, pady=5)
 
         zoom_frame = ttk.Frame(jog_frame)
         zoom_frame.grid(row=3, column=0, columnspan=3, pady=(15, 0))
@@ -89,12 +90,12 @@ class PTZControlApp:
         zoom_buttons_frame = ttk.Frame(zoom_frame)
         zoom_buttons_frame.pack(pady=5)
 
-        ttk.Button(zoom_buttons_frame, text="Z-", width=4,
-                   command=lambda: self.jog_zoom(-1)).pack(side="left", padx=5)
+        HoldableButton(zoom_buttons_frame, text="Z-", width=4,
+                   command=lambda: self.jog_zoom(-1), timeout=100).pack(side="left", padx=5)
         ttk.Button(zoom_buttons_frame, text="Zx1", width=4,
                    command=lambda: self.reset_zoom()).pack(side="left", padx=5)
-        ttk.Button(zoom_buttons_frame, text="Z+", width=4,
-                   command=lambda: self.jog_zoom(1)).pack(side="left", padx=5)
+        HoldableButton(zoom_buttons_frame, text="Z+", width=4,
+                   command=lambda: self.jog_zoom(1), timeout=100).pack(side="left", padx=5)
 
         jog_frame.columnconfigure(0, weight=1)
         jog_frame.columnconfigure(1, weight=1)
