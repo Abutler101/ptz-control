@@ -1,6 +1,4 @@
 """
-TODO: Create Preset
-TODO: Delete Preset
 TODO: Jog Hotkeys
 TODO: Preset Hotkeys
 TODO: Movement based Tracking

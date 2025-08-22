@@ -124,4 +124,22 @@ class PTZController:
         """Move to preset location"""
         if not self.connected:
             return
-        ...
+        target_pan: str
+        target_tilt: str
+        target_zoom: str
+        raw_pan_hex = hex(preset.pan+1).replace("0x","")
+        raw_tilt_hex = hex(preset.tilt+1).replace("0x","")
+        raw_zoom_hex = hex(preset.zoom+1).replace("0x","")
+
+        target_pan = (raw_pan_hex[0:2] + "00").upper()
+        target_tilt = (raw_tilt_hex[0:2] + "00").upper()
+        target_zoom = (raw_zoom_hex[0:2] + "5").upper()
+
+        location_str = f"APS{target_pan}{target_tilt}1D2"
+        zoom_str = f"AXZ{target_zoom}"
+        zoom_response = requests.get(f"http://{self.ip_address}/cgi-bin/aw_ptz?cmd=%23{zoom_str}&res=1")
+        move_response = requests.get(f"http://{self.ip_address}/cgi-bin/aw_ptz?cmd=%23{location_str}&res=1")
+        if (move_response.status_code != 200 or zoom_response.status_code != 200 or
+                move_response.text.upper() != location_str or zoom_response.text.upper() != zoom_str):
+            print(f"Failed to Move to Preset {preset.name}")
+        self.refresh_position()
