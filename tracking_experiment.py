@@ -2,7 +2,8 @@
 Basic Motion based realtime tracker camera control. Seems to run fast enough?
 Not sure how well it'll cope when given actual control of camera
 """
-
+import threading
+from typing import Optional, Tuple
 
 import cv2
 import numpy as np
@@ -29,6 +30,37 @@ class TrackingMode(Enum):
     MULTI = "MULTI"
 
 
+class CameraFeed:
+    def __init__(self, ip: str, port: int, stream_path: str):
+        self.url = f"rtsp://{ip}:{port}/{stream_path}"
+        self.cap = cv2.VideoCapture(self.url)
+        self.is_running = False
+        self.lock = threading.Lock()
+        self.frame: Optional[Tuple[bool, cv2.Mat]] = None
+
+    def start(self) -> None:
+        self.is_running = True
+        thread = threading.Thread(target=self._update_frame, args=())
+        thread.start()
+
+    def stop(self) -> None:
+        self.is_running = False
+        if self.cap.isOpened():
+            self.cap.release()
+
+    def _update_frame(self) -> None:
+        while self.is_running:
+            ret, frame = self.cap.read()
+            with self.lock:
+                self.frame = (ret, frame)
+
+    def read(self) -> Tuple[bool, Optional[cv2.Mat]]:
+        with self.lock:
+            if self.frame is not None:
+                return self.frame
+            return False, None
+
+
 # Stub for camera movement API
 def move_camera(direction: Direction, amount: float):
     # Replace this with actual API call
@@ -42,6 +74,9 @@ def zoom_camera(direction: ZoomDirection, steps: int):
 
 
 def main(tracking_mode: TrackingMode = TrackingMode.LARGEST):
+    ptz_cam = CameraFeed("192.168.0.10",554, "mediainput/h264/stream_1")
+    ptz_cam.start()
+
     cap = cv2.VideoCapture(0)
 
     # Background subtractor for motion detection
