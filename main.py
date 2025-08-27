@@ -23,6 +23,7 @@ class PTZControlApp:
     presets: Dict[str, PresetLocation]
     hotkeys: Dict[str, str]
     running: bool
+    tracking_enabled: bool
     status_thread: threading.Thread
     connection_thread: Optional[threading.Thread]
 
@@ -40,7 +41,10 @@ class PTZControlApp:
         self.setup_global_hotkeys()
 
         self.running = True
-        self.status_thread = threading.Thread(target=self.update_status_loop, daemon=True)
+        self.tracking_enabled = False
+        self.status_thread = threading.Thread(
+            target=self.update_status_loop, daemon=True
+        )
         self.status_thread.start()
 
         self.connection_thread = None
@@ -55,7 +59,9 @@ class PTZControlApp:
         self.ip_entry.grid(row=0, column=1, padx=5)
         self.ip_entry.insert(0, "192.168.0.10")  # Default IP
 
-        self.connect_btn = ttk.Button(conn_frame, text="Connect", command=self.connect_camera)
+        self.connect_btn = ttk.Button(
+            conn_frame, text="Connect", command=self.connect_camera
+        )
         self.connect_btn.grid(row=0, column=2, padx=5)
 
         self.status_label = ttk.Label(conn_frame, text="Disconnected", foreground="red")
@@ -68,18 +74,23 @@ class PTZControlApp:
         jog_frame = ttk.LabelFrame(control_frame, text="Jog Controls", padding=20)
         jog_frame.pack(side="left", fill="both", expand=True, padx=5)
 
-        HoldableButton(jog_frame, text="▲", width=4,
-                   command=lambda: self.jog_tilt(-1), timeout=100).grid(row=0, column=1, padx=5, pady=5)
+        HoldableButton(
+            jog_frame, text="▲", width=4, command=lambda: self.jog_tilt(-1), timeout=100
+        ).grid(row=0, column=1, padx=5, pady=5)
 
-        HoldableButton(jog_frame, text="◀", width=4,
-                   command=lambda: self.jog_pan(1), timeout=100).grid(row=1, column=0, padx=5, pady=5)
-        ttk.Button(jog_frame, text="𝐇", width=4,
-                   command=lambda: self.go_home()).grid(row=1, column=1, padx=5, pady=5)
-        HoldableButton(jog_frame, text="▶", width=4,
-                   command=lambda: self.jog_pan(-1), timeout=100).grid(row=1, column=2, padx=5, pady=5)
+        HoldableButton(
+            jog_frame, text="◀", width=4, command=lambda: self.jog_pan(1), timeout=100
+        ).grid(row=1, column=0, padx=5, pady=5)
+        ttk.Button(jog_frame, text="𝐇", width=4, command=lambda: self.go_home()).grid(
+            row=1, column=1, padx=5, pady=5
+        )
+        HoldableButton(
+            jog_frame, text="▶", width=4, command=lambda: self.jog_pan(-1), timeout=100
+        ).grid(row=1, column=2, padx=5, pady=5)
 
-        HoldableButton(jog_frame, text="▼", width=4,
-                   command=lambda: self.jog_tilt(1), timeout=100).grid(row=2, column=1, padx=5, pady=5)
+        HoldableButton(
+            jog_frame, text="▼", width=4, command=lambda: self.jog_tilt(1), timeout=100
+        ).grid(row=2, column=1, padx=5, pady=5)
 
         zoom_frame = ttk.Frame(jog_frame)
         zoom_frame.grid(row=3, column=0, columnspan=3, pady=(15, 0))
@@ -88,12 +99,33 @@ class PTZControlApp:
         zoom_buttons_frame = ttk.Frame(zoom_frame)
         zoom_buttons_frame.pack(pady=5)
 
-        HoldableButton(zoom_buttons_frame, text="Z-", width=4,
-                   command=lambda: self.jog_zoom(-1), timeout=100).pack(side="left", padx=5)
-        ttk.Button(zoom_buttons_frame, text="Zx1", width=4,
-                   command=lambda: self.reset_zoom()).pack(side="left", padx=5)
-        HoldableButton(zoom_buttons_frame, text="Z+", width=4,
-                   command=lambda: self.jog_zoom(1), timeout=100).pack(side="left", padx=5)
+        HoldableButton(
+            zoom_buttons_frame,
+            text="Z-",
+            width=4,
+            command=lambda: self.jog_zoom(-1),
+            timeout=100,
+        ).pack(side="left", padx=5)
+        ttk.Button(
+            zoom_buttons_frame, text="Zx1", width=4, command=lambda: self.reset_zoom()
+        ).pack(side="left", padx=5)
+        HoldableButton(
+            zoom_buttons_frame,
+            text="Z+",
+            width=4,
+            command=lambda: self.jog_zoom(1),
+            timeout=100,
+        ).pack(side="left", padx=5)
+
+        tracking_frame = ttk.Frame(zoom_frame)
+        tracking_frame.pack(pady=(10, 0))
+        self.tracking_btn = ttk.Button(
+            tracking_frame,
+            text="AUTO TRACKING IS OFF",
+            width=25,
+            command=self.toggle_tracking,
+        )
+        self.tracking_btn.pack()
 
         jog_frame.columnconfigure(0, weight=1)
         jog_frame.columnconfigure(1, weight=1)
@@ -108,17 +140,22 @@ class PTZControlApp:
         preset_mgmt_frame = ttk.Frame(preset_frame)
         preset_mgmt_frame.pack(fill="x", pady=(10, 0))
 
-        ttk.Button(preset_mgmt_frame, text="Create Preset",
-                   command=self.create_preset).pack(side="left", padx=2)
-        ttk.Button(preset_mgmt_frame, text="Delete Preset",
-                   command=self.delete_preset).pack(side="left", padx=2)
-        ttk.Button(preset_mgmt_frame, text="Set Hotkey",
-                   command=self.set_hotkey).pack(side="left", padx=2)
+        ttk.Button(
+            preset_mgmt_frame, text="Create Preset", command=self.create_preset
+        ).pack(side="left", padx=2)
+        ttk.Button(
+            preset_mgmt_frame, text="Delete Preset", command=self.delete_preset
+        ).pack(side="left", padx=2)
+        ttk.Button(preset_mgmt_frame, text="Set Hotkey", command=self.set_hotkey).pack(
+            side="left", padx=2
+        )
 
         pos_frame = ttk.LabelFrame(self.root, text="Current Position", padding=10)
         pos_frame.pack(fill="x", padx=10, pady=5)
 
-        self.pos_label = ttk.Label(pos_frame, text="Pan: 0.0° | Tilt: 0.0° | Zoom: 1.0x")
+        self.pos_label = ttk.Label(
+            pos_frame, text="Pan: 0.0° | Tilt: 0.0° | Zoom: 1.0x"
+        )
         self.pos_label.pack()
 
         self.update_preset_buttons()
@@ -135,21 +172,38 @@ class PTZControlApp:
                 try:
                     self.ptz_controller = PTZController(ip)
                     if self.ptz_controller.check_connection():
-                        self.root.after(0, lambda: self.status_label.config(text="Connected", foreground="green"))
-                        self.root.after(0, lambda: self.connect_btn.config(text="Disconnect"))
+                        self.root.after(
+                            0,
+                            lambda: self.status_label.config(
+                                text="Connected", foreground="green"
+                            ),
+                        )
+                        self.root.after(
+                            0, lambda: self.connect_btn.config(text="Disconnect")
+                        )
                     else:
-                        self.root.after(0, lambda: messagebox.showerror(
-                            "Error", "Failed to connect to camera"))
+                        self.root.after(
+                            0,
+                            lambda: messagebox.showerror(
+                                "Error", "Failed to connect to camera"
+                            ),
+                        )
                 except Exception as e:
-                    self.root.after(0, lambda: messagebox.showerror(
-                        "Error", f"Connection failed: {str(e)}"))
+                    self.root.after(
+                        0,
+                        lambda: messagebox.showerror(
+                            "Error", f"Connection failed: {str(e)}"
+                        ),
+                    )
                 time.sleep(20)
 
         if self.ptz_controller and self.ptz_controller.connected:
             self.status_label.config(text="Disconnected", foreground="red")
             self.connect_btn.config(text="Connect")
         else:
-            self.connection_thread = threading.Thread(target=connect_thread, daemon=True).start()
+            self.connection_thread = threading.Thread(
+                target=connect_thread, daemon=True
+            ).start()
 
     def jog_pan(self, direction: int):
         # left=1, right=-1
@@ -185,15 +239,14 @@ class PTZControlApp:
             return
 
         if name in self.presets:
-            if not messagebox.askyesno("Overwrite", f"Preset '{name}' exists. Overwrite?"):
+            if not messagebox.askyesno(
+                "Overwrite", f"Preset '{name}' exists. Overwrite?"
+            ):
                 return
 
         current_pos = self.ptz_controller.current_position
         self.presets[name] = PresetLocation(
-            name=name,
-            pan=current_pos.pan,
-            tilt=current_pos.tilt,
-            zoom=current_pos.zoom
+            name=name, pan=current_pos.pan, tilt=current_pos.tilt, zoom=current_pos.zoom
         )
 
         self.save_presets()
@@ -207,12 +260,15 @@ class PTZControlApp:
             return
 
         preset_names = list(self.presets.keys())
-        name = simpledialog.askstring("Delete Preset",
-                                      f"Enter preset name to delete:\n{', '.join(preset_names)}")
+        name = simpledialog.askstring(
+            "Delete Preset", f"Enter preset name to delete:\n{', '.join(preset_names)}"
+        )
 
         if name and name in self.presets:
             del self.presets[name]
-            self.hotkeys = {k: v for k, v in self.hotkeys.items() if v != f"preset_{name}"}
+            self.hotkeys = {
+                k: v for k, v in self.hotkeys.items() if v != f"preset_{name}"
+            }
             self.save_presets()
             self.update_preset_buttons()
             messagebox.showinfo("Success", f"Preset '{name}' deleted")
@@ -228,11 +284,25 @@ class PTZControlApp:
         if preset_name in self.presets:
             self.ptz_controller.goto_preset(self.presets[preset_name])
 
+    def toggle_tracking(self):
+        """Toggle auto-tracking on/off"""
+        self.tracking_enabled = not self.tracking_enabled
+
+        if self.tracking_enabled:
+            self.tracking_btn.configure(text="AUTO TRACKING IS ON")
+            # Enable auto-tracking in the PTZ controller
+            ...
+        else:
+            self.tracking_btn.config(text="AUTO TRACKING IS OFF")
+            # Disable auto-tracking in the PTZ controller
+            ...
+
     def set_hotkey(self):
         """Set a hotkey for a preset or jog function"""
         # Simplified hotkey setting - in a real app, use a proper key capture dialog
-        messagebox.showinfo("Hotkey Setup",
-                            "This is a placeholder for the hotkey setup dialog.")
+        messagebox.showinfo(
+            "Hotkey Setup", "This is a placeholder for the hotkey setup dialog."
+        )
 
     def setup_global_hotkeys(self):
         """Setup global hotkeys (placeholder)"""
@@ -255,8 +325,11 @@ class PTZControlApp:
         row = 0
         col = 0
         for preset_name in self.presets:
-            btn = ttk.Button(self.preset_buttons_frame, text=preset_name,
-                             command=lambda name=preset_name: self.goto_preset(name))
+            btn = ttk.Button(
+                self.preset_buttons_frame,
+                text=preset_name,
+                command=lambda name=preset_name: self.goto_preset(name),
+            )
             btn.grid(row=row, column=col, padx=2, pady=2, sticky="ew")
 
             col += 1
@@ -275,7 +348,9 @@ class PTZControlApp:
                 self.ptz_controller.refresh_position()
                 pos = self.ptz_controller.current_position
 
-                pos_text = f"Pan: {pos.pan:.1f} | Tilt: {pos.tilt:.1f} | Zoom: {pos.zoom:.1f}"
+                pos_text = (
+                    f"Pan: {pos.pan:.1f} | Tilt: {pos.tilt:.1f} | Zoom: {pos.zoom:.1f}"
+                )
                 self.root.after(0, lambda: self.pos_label.config(text=pos_text))
 
             time.sleep(0.1)  # Update 10 times per second
@@ -303,11 +378,11 @@ class PTZControlApp:
                         "name": preset.name,
                         "pan": preset.pan,
                         "tilt": preset.tilt,
-                        "zoom": preset.zoom
+                        "zoom": preset.zoom,
                     }
                     for name, preset in self.presets.items()
                 },
-                "hotkeys": self.hotkeys
+                "hotkeys": self.hotkeys,
             }
             with open("ptz_presets.json", "w") as f:
                 json.dump(data, f, indent=2)
