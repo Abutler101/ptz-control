@@ -75,6 +75,7 @@ class PTZController:
         # If Direction is 1, Take step Left.
         # If Direction is -1, Take step Right
         target_pos_base_10 = int(self.current_position.pan + ((direction * 256) * speed)) + 2
+        target_pos_base_10 = max(min(target_pos_base_10, 65535), 0)
         raw_target_hex = hex(target_pos_base_10).replace("0x", "")
         target_pan = (raw_target_hex[0:2] + "00").upper()
         current_tilt_raw_hex = hex(self.current_position.tilt+1).replace("0x", "")
@@ -94,6 +95,7 @@ class PTZController:
         # If Direction is 1, Take step Down.
         # If Direction is -1, Take step Up
         target_pos_base_10 = int(self.current_position.tilt + ((direction * 256) * speed)) + 2
+        target_pos_base_10 = max(min(target_pos_base_10, 65535), 0)
         raw_target_hex = hex(target_pos_base_10).replace("0x", "")
         target_tilt = (raw_target_hex[0:2] + "00").upper()
         current_pan_raw_hex = hex(self.current_position.pan+1).replace("0x", "")
@@ -111,6 +113,7 @@ class PTZController:
             return
         target_zoom: str
         target_pos_base_10 = int(self.current_position.zoom + ((direction * 16) * speed)) + 2
+        target_pos_base_10 = max(min(target_pos_base_10, 4095), 1376)
         raw_target_hex = hex(target_pos_base_10).replace("0x", "")
         target_zoom = (raw_target_hex[0:2] + "0").upper()
 
