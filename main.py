@@ -213,21 +213,22 @@ class PTZControlApp:
                 target=connect_thread, daemon=True
             ).start()
 
-        time.sleep(0.5)
-        if self.ptz_controller and self.ptz_controller.connected:
-            try:
-                self.motion_tracker = MotionTracker(
-                    feed=RTSPFeed(ip,554, "mediainput/h264/stream_1"),
-                    mode=TrackingMode(self.track_mode_select.get().split(".")[1]),
-                    cam_controller=self.ptz_controller
-                )
-            except Exception as e:
-                self.root.after(
-                    0,
-                    lambda: messagebox.showerror(
-                        "Error", f"Connection failed: {str(e)}"
-                    ),
-                )
+            time.sleep(0.5)
+            if self.ptz_controller and self.ptz_controller.connected:
+                try:
+                    self.motion_tracker = MotionTracker(
+                        feed=RTSPFeed(ip, 554, "mediainput/h264/stream_1"),
+                        mode=TrackingMode(self.track_mode_select.get().split(".")[1]),
+                        cam_controller=self.ptz_controller
+                    )
+                except Exception as e:
+                    self.root.after(
+                        0,
+                        lambda: messagebox.showerror(
+                            "Error", f"Connection failed: {str(e)}"
+                        ),
+                    )
+
 
     def manual_tracking_override(func):
         """
