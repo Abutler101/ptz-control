@@ -3,6 +3,7 @@ Basic Motion based realtime tracker camera control. Seems to run fast enough?
 Not sure how well it'll cope when given actual control of camera
 """
 import threading
+import time
 from typing import Optional, Tuple
 
 import cv2
@@ -43,7 +44,7 @@ class CameraFeed:
         thread = threading.Thread(target=self._update_frame, args=())
         thread.start()
 
-    def stop(self) -> None:
+    def release(self) -> None:
         self.is_running = False
         if self.cap.isOpened():
             self.cap.release()
@@ -76,12 +77,14 @@ def zoom_camera(direction: ZoomDirection, steps: int):
 def main(tracking_mode: TrackingMode = TrackingMode.LARGEST):
     ptz_cam = CameraFeed("192.168.0.10",554, "mediainput/h264/stream_1")
     ptz_cam.start()
+    time.sleep(0.5)
 
-    cap = cv2.VideoCapture(0)
+    #cap = cv2.VideoCapture(0)
+    cap = ptz_cam
 
     # Background subtractor for motion detection
     back_sub = cv2.createBackgroundSubtractorMOG2(
-        history=100, varThreshold=50, detectShadows=False
+        history=80, varThreshold=50, detectShadows=False
     )
 
     # Frame dimensions (grab one frame to get size)
@@ -184,8 +187,8 @@ def main(tracking_mode: TrackingMode = TrackingMode.LARGEST):
                     zoom_camera(ZoomDirection.OUT, steps)
 
         # Optional: show debug view
-        # cv2.imshow("Frame", frame)
-        # cv2.imshow("Mask", thresh)
+        cv2.imshow("Frame", frame)
+        cv2.imshow("Mask", thresh)
 
         # Exit on 'q'
         if cv2.waitKey(1) & 0xFF == ord("q"):

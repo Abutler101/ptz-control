@@ -3,7 +3,7 @@ TODO: Jog Hotkeys
 TODO: Preset Hotkeys
 TODO: Movement based Tracking
 """
-
+import functools
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 import threading
@@ -15,6 +15,8 @@ import os
 from cam_controller import PTZController
 from holdable_button import HoldableButton
 from models import PresetLocation
+from motion_tracker import TrackingMode, MotionTracker
+from rtsp_feed import RTSPFeed
 
 
 class PTZControlApp:
@@ -24,15 +26,17 @@ class PTZControlApp:
     hotkeys: Dict[str, str]
     running: bool
     tracking_enabled: bool
+    motion_tracker: Optional[MotionTracker]
     status_thread: threading.Thread
     connection_thread: Optional[threading.Thread]
 
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("PTZ Camera Controller")
-        self.root.geometry("600x500")
+        self.root.geometry("610x600")
 
         self.ptz_controller = None
+        self.motion_tracker = None
         self.presets = {}
         self.hotkeys = {}
 
@@ -126,6 +130,10 @@ class PTZControlApp:
             command=self.toggle_tracking,
         )
         self.tracking_btn.pack()
+        self.track_mode_select = ttk.Combobox(tracking_frame, values=list(TrackingMode), state="readonly")
+        self.track_mode_select.current(1)
+        self.track_mode_select.bind("<<ComboboxSelected>>", self.update_track_mode)
+        self.track_mode_select.pack()
 
         jog_frame.columnconfigure(0, weight=1)
         jog_frame.columnconfigure(1, weight=1)
@@ -205,24 +213,85 @@ class PTZControlApp:
                 target=connect_thread, daemon=True
             ).start()
 
+        time.sleep(0.5)
+        if self.ptz_controller and self.ptz_controller.connected:
+            try:
+                self.motion_tracker = MotionTracker(
+                    feed=RTSPFeed(ip,554, "mediainput/h264/stream_1"),
+                    mode=TrackingMode(self.track_mode_select.get().split(".")[1]),
+                    cam_controller=self.ptz_controller
+                )
+            except Exception as e:
+                self.root.after(
+                    0,
+                    lambda: messagebox.showerror(
+                        "Error", f"Connection failed: {str(e)}"
+                    ),
+                )
+
+    def manual_tracking_override(func):
+        """
+        Enables and disables tracking either side of a manual jog command
+        """
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            was_tracking: bool = False
+            if args[0].tracking_enabled:
+                was_tracking = True
+                args[0].toggle_tracking()
+
+            result = func(*args, **kwargs)
+
+            if was_tracking:
+                args[0].toggle_tracking()
+            return result
+        return wrapper
+
+    def toggle_tracking(self):
+        """Toggle auto-tracking on/off"""
+        if self.motion_tracker is None:
+            return
+
+        if self.tracking_enabled:
+            # Disable auto-tracking
+            self.motion_tracker.stop_tracking()
+            if not self.motion_tracker.is_tracking():
+                self.tracking_enabled = False
+                self.tracking_btn.configure(text="AUTO TRACKING IS OFF")
+        else:
+            # Enable auto-tracking
+            self.motion_tracker.start_tracking()
+            if self.motion_tracker.is_tracking():
+                self.tracking_enabled = True
+                self.tracking_btn.config(text="AUTO TRACKING IS ON")
+
+    def update_track_mode(self, _: tk.Event):
+        new_track_mode = TrackingMode(self.track_mode_select.get().split(".")[1])
+        self.motion_tracker.track_mode = new_track_mode
+
+    @manual_tracking_override
     def jog_pan(self, direction: int):
         # left=1, right=-1
         if self.ptz_controller:
             self.ptz_controller.move_pan(direction)
 
+    @manual_tracking_override
     def go_home(self):
         if self.ptz_controller:
             self.ptz_controller.move_home()
 
+    @manual_tracking_override
     def reset_zoom(self):
         if self.ptz_controller:
             self.ptz_controller.reset_zoom()
 
+    @manual_tracking_override
     def jog_tilt(self, direction: int):
         # down=-1, up=1
         if self.ptz_controller:
             self.ptz_controller.move_tilt(direction)
 
+    @manual_tracking_override
     def jog_zoom(self, direction: int):
         # Zoom Out=-1, Zoom In=1
         if self.ptz_controller:
@@ -275,6 +344,7 @@ class PTZControlApp:
         elif name:
             messagebox.showerror("Error", f"Preset '{name}' not found")
 
+    @manual_tracking_override
     def goto_preset(self, preset_name: str):
         """Go to a preset location"""
         if not self.ptz_controller or not self.ptz_controller.connected:
@@ -283,19 +353,6 @@ class PTZControlApp:
 
         if preset_name in self.presets:
             self.ptz_controller.goto_preset(self.presets[preset_name])
-
-    def toggle_tracking(self):
-        """Toggle auto-tracking on/off"""
-        self.tracking_enabled = not self.tracking_enabled
-
-        if self.tracking_enabled:
-            self.tracking_btn.configure(text="AUTO TRACKING IS ON")
-            # Enable auto-tracking in the PTZ controller
-            ...
-        else:
-            self.tracking_btn.config(text="AUTO TRACKING IS OFF")
-            # Disable auto-tracking in the PTZ controller
-            ...
 
     def set_hotkey(self):
         """Set a hotkey for a preset or jog function"""
