@@ -243,6 +243,7 @@ class PTZControlApp:
             result = func(*args, **kwargs)
 
             if was_tracking:
+                args[0].motion_tracker.back_sub.clear()
                 args[0].toggle_tracking()
             return result
         return wrapper

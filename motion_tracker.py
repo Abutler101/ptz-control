@@ -32,6 +32,7 @@ class MotionTracker:
     track_mode: TrackingMode
     cam_control: PTZController
     track_thread_created: bool
+    motion_cool_down_ns: int
     move_scale: float
     min_fill: float
     max_fill: float
@@ -45,6 +46,7 @@ class MotionTracker:
         self.track_thread_created = False
         self.back_sub = None
 
+        self.motion_cool_down_ns = 500_000_000  # 500ms -> 0.5s
         self.move_scale = 0.1  # proportional control factor
         self.min_fill = 0.10  # if object(s) < 10% of frame → zoom in
         self.max_fill = 0.40  # if object(s) > 40% of frame → zoom out
@@ -65,12 +67,16 @@ class MotionTracker:
         self.frame_area = self.frame_w * self.frame_h
 
         self.back_sub = cv2.createBackgroundSubtractorMOG2(
-            history=80, varThreshold=50, detectShadows=False
+            history=50, varThreshold=50, detectShadows=False
         )
 
     def _tracking_loop(self, tracking_activation_event: threading.Event):
+        camera_moved = False
+        last_move_ns: int = time.perf_counter_ns()
         while True:
             tracking_activation_event.wait()
+            if time.perf_counter_ns() - last_move_ns < self.motion_cool_down_ns:
+                continue
             ret, frame = self.rtsp_feed.read()
             if not ret:
                 break
@@ -132,11 +138,13 @@ class MotionTracker:
                     direction = Direction.RIGHT if offset_x > 0 else Direction.LEFT
                     amount = min(100.0, abs(offset_x) * 100 * self.move_scale)
                     self.move_camera(direction, amount)
+                    camera_moved = True
 
                 if abs(offset_y) > 0.05:
                     direction = Direction.DOWN if offset_y > 0 else Direction.UP
                     amount = min(100.0, abs(offset_y) * 100 * self.move_scale)
                     self.move_camera(direction, amount)
+                    camera_moved = True
 
                 # Zoom control
                 fill_ratio = total_area / self.frame_area
@@ -144,10 +152,15 @@ class MotionTracker:
                     steps = int(min(100, (self.min_fill - fill_ratio) * 200))
                     if steps > 0:
                         self.zoom_camera(ZoomDirection.IN, steps)
+                        camera_moved = True
                 elif fill_ratio > self.max_fill:
                     steps = int(min(100, (fill_ratio - self.max_fill) * 200))
                     if steps > 0:
                         self.zoom_camera(ZoomDirection.OUT, steps)
+                        camera_moved = True
+
+            if camera_moved:
+                last_move_ns = time.perf_counter_ns()
 
     def move_camera(self, direction: Direction, amount: float):
         if direction == Direction.LEFT:
