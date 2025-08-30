@@ -36,7 +36,7 @@ class MotionTracker:
     min_fill: float
     max_fill: float
     back_sub: Optional[cv2.BackgroundSubtractorMOG2]
-    _pause_tracking: threading.Event = threading.Event()
+    _tracking_active: threading.Event = threading.Event()
 
     def __init__(self, feed: RTSPFeed, mode: TrackingMode, cam_controller: PTZController):
         self.rtsp_feed = feed
@@ -50,7 +50,7 @@ class MotionTracker:
         self.max_fill = 0.40  # if object(s) > 40% of frame → zoom out
 
     def is_tracking(self) -> bool:
-        return not self._pause_tracking.is_set()
+        return self._tracking_active.is_set()
 
     def _configure_tracking(self):
         self.rtsp_feed.start()
@@ -68,9 +68,9 @@ class MotionTracker:
             history=80, varThreshold=50, detectShadows=False
         )
 
-    def _tracking_loop(self, pause_event: threading.Event):
+    def _tracking_loop(self, tracking_activation_event: threading.Event):
         while True:
-            pause_event.wait()
+            tracking_activation_event.wait()
             ret, frame = self.rtsp_feed.read()
             if not ret:
                 break
@@ -150,25 +150,37 @@ class MotionTracker:
                         self.zoom_camera(ZoomDirection.OUT, steps)
 
     def move_camera(self, direction: Direction, amount: float):
-        ...
+        if direction == Direction.LEFT:
+            self.cam_control.move_pan(1, amount)
+        elif direction == Direction.RIGHT:
+            self.cam_control.move_pan(-1, amount)
+
+        elif direction == Direction.DOWN:
+            self.cam_control.move_tilt(1, amount)
+        elif direction == Direction.UP:
+            self.cam_control.move_tilt(-1, amount)
 
     def zoom_camera(self, direction: ZoomDirection, amount: int):
-        ...
+        if direction == ZoomDirection.IN:
+            self.cam_control.move_zoom(1, amount)
+        else:
+            self.cam_control.move_zoom(-1, amount)
 
     def start_tracking(self):
 
-        def _tracking_thread(pause_event: threading.Event):
+        def _tracking_thread(tracking_activation_event: threading.Event):
             self._configure_tracking()
-            self._tracking_loop(pause_event)
+            self._tracking_loop(tracking_activation_event)
 
         if not self.track_thread_created:
             self.tracking_thread = threading.Thread(
-                target=_tracking_thread, args=(self._pause_tracking,), daemon=True
+                target=_tracking_thread, args=(self._tracking_active,), daemon=True
             ).start()
             self.track_thread_created = True
-        elif self.track_thread_created and self._pause_tracking.isSet():
-            self._pause_tracking.clear()
+            self._tracking_active.set()
+        elif self.track_thread_created and not self._tracking_active.isSet():
+            self._tracking_active.set()
 
     def stop_tracking(self):
-        if not self._pause_tracking.isSet():
-            self._pause_tracking.set()
+        if self._tracking_active.isSet():
+            self._tracking_active.clear()
