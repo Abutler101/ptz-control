@@ -10,6 +10,8 @@ import cv2
 import numpy as np
 from enum import Enum
 
+from cam_controller import PTZController
+
 
 # Camera movement directions
 class Direction(Enum):
@@ -63,19 +65,34 @@ class CameraFeed:
 
 
 # Stub for camera movement API
-def move_camera(direction: Direction, amount: float):
+def move_camera(cam_control, direction: Direction, amount: float):
     # Replace this with actual API call
     print(f"Moving camera {direction.value} by {amount:.2f}")
+    if direction == Direction.LEFT:
+        cam_control.move_pan(1, amount)
+    elif direction == Direction.RIGHT:
+        cam_control.move_pan(-1, amount)
+
+    elif direction == Direction.DOWN:
+        cam_control.move_tilt(1, amount)
+    elif direction == Direction.UP:
+        cam_control.move_tilt(-1, amount)
 
 
 # Stub for camera zoom API
-def zoom_camera(direction: ZoomDirection, steps: int):
+def zoom_camera(cam_control, direction: ZoomDirection, steps: int):
     # Replace this with actual API call
     print(f"Zooming {direction.value} by {steps}")
+    if direction == ZoomDirection.IN:
+        cam_control.move_zoom(1, steps)
+    else:
+        cam_control.move_zoom(-1, steps)
 
 
 def main(tracking_mode: TrackingMode = TrackingMode.LARGEST):
     ptz_cam = CameraFeed("192.168.0.10",554, "mediainput/h264/stream_1")
+    cam_control = PTZController("192.168.0.10")
+    cam_control.check_connection()
     ptz_cam.start()
     time.sleep(0.5)
 
@@ -84,7 +101,7 @@ def main(tracking_mode: TrackingMode = TrackingMode.LARGEST):
 
     # Background subtractor for motion detection
     back_sub = cv2.createBackgroundSubtractorMOG2(
-        history=80, varThreshold=50, detectShadows=False
+        history=50, varThreshold=50, detectShadows=False
     )
 
     # Frame dimensions (grab one frame to get size)
@@ -104,7 +121,15 @@ def main(tracking_mode: TrackingMode = TrackingMode.LARGEST):
     min_fill = 0.10  # if object(s) < 10% of frame → zoom in
     max_fill = 0.40  # if object(s) > 40% of frame → zoom out
 
+    # 1 second = 1,000,000,000 nanoseconds
+    # 1 ms = 1,000,000 nanoseconds
+    last_move_ns: int = time.perf_counter_ns()
+    camera_moved = False
+    motion_cool_down_ns: int = 500_000_000  # 500ms -> 0.5s
+
     while True:
+        if time.perf_counter_ns() - last_move_ns < motion_cool_down_ns:
+            continue
         ret, frame = cap.read()
         if not ret:
             break
@@ -168,23 +193,30 @@ def main(tracking_mode: TrackingMode = TrackingMode.LARGEST):
             if abs(offset_x) > 0.05:  # deadzone
                 direction = Direction.RIGHT if offset_x > 0 else Direction.LEFT
                 amount = min(100, abs(offset_x) * 100 * move_scale)
-                move_camera(direction, amount)
+                move_camera(cam_control, direction, amount)
+                camera_moved = True
 
             if abs(offset_y) > 0.05:
                 direction = Direction.DOWN if offset_y > 0 else Direction.UP
                 amount = min(100, abs(offset_y) * 100 * move_scale)
-                move_camera(direction, amount)
+                move_camera(cam_control, direction, amount)
+                camera_moved = True
 
             # Zoom control
             fill_ratio = total_area / frame_area
             if fill_ratio < min_fill:
                 steps = int(min(100, (min_fill - fill_ratio) * 200))
                 if steps > 0:
-                    zoom_camera(ZoomDirection.IN, steps)
+                    zoom_camera(cam_control, ZoomDirection.IN, steps)
+                    camera_moved = True
             elif fill_ratio > max_fill:
                 steps = int(min(100, (fill_ratio - max_fill) * 200))
                 if steps > 0:
-                    zoom_camera(ZoomDirection.OUT, steps)
+                    zoom_camera(cam_control, ZoomDirection.OUT, steps)
+                    camera_moved = True
+
+        if camera_moved:
+            last_move_ns = time.perf_counter_ns()
 
         # Optional: show debug view
         cv2.imshow("Frame", frame)
