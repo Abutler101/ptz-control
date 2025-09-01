@@ -144,18 +144,18 @@ def main():
                     # Players are too small/far, zoom in
                     zoom_camera(ZoomDirection.IN, max(1, int((ZOOM_OUT_THRESHOLD - bbox_width_ratio) * ZOOM_SENSITIVITY)))
 
-            # Draw center lines for reference
-            cv2.line(frame, (int(frame_center_x), 0), (int(frame_center_x), frame_height), (255, 255, 255), 1)
-            cv2.line(frame, (0, int(frame_center_y)), (frame_width, int(frame_center_y)), (255, 255, 255), 1)
+        # Draw center lines for reference
+        cv2.line(frame, (int(frame_center_x), 0), (int(frame_center_x), frame_height), (255, 255, 255), 1)
+        cv2.line(frame, (0, int(frame_center_y)), (frame_width, int(frame_center_y)), (255, 255, 255), 1)
 
-            # Draw dead zones
-            cv2.rectangle(frame,
-                          (int(frame_center_x - PAN_DEAD_ZONE), int(frame_center_y - TILT_DEAD_ZONE)),
-                          (int(frame_center_x + PAN_DEAD_ZONE), int(frame_center_y + TILT_DEAD_ZONE)),
-                          (0, 255, 255), 1)
-            cv2.putText(frame, "Dead Zone",
-                        (int(frame_center_x + PAN_DEAD_ZONE + 10), int(frame_center_y)),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+        # Draw dead zones
+        cv2.rectangle(
+            frame,
+            (int(frame_center_x - PAN_DEAD_ZONE), int(frame_center_y - TILT_DEAD_ZONE)),
+            (int(frame_center_x + PAN_DEAD_ZONE), int(frame_center_y + TILT_DEAD_ZONE)),
+            (0, 255, 255),
+            1
+        )
 
         cv2.imshow("Tracking", frame)
         if cv2.waitKey(1) & 0xFF == ord("q"):
