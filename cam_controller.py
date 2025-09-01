@@ -67,7 +67,7 @@ class PTZController:
             print("Failed to Reset Zoom")
         self.refresh_position()
 
-    def move_pan(self, direction: int, speed: float = 1.0):
+    def move_pan(self, direction: int, speed: float = 5.0):
         """Move pan left (1) or right (-1)"""
         if not self.connected:
             return
@@ -87,7 +87,7 @@ class PTZController:
             print(f"Failed to take Pan Step to {target_pan}")
         self.refresh_position()
 
-    def move_tilt(self, direction: int, speed: float = 1.0):
+    def move_tilt(self, direction: int, speed: float = 5.0):
         """Move tilt down (1) or up (-1)"""
         if not self.connected:
             return
@@ -107,7 +107,7 @@ class PTZController:
             print(f"Failed to take Pan Step to {target_tilt}")
         self.refresh_position()
 
-    def move_zoom(self, direction: int, speed: float = 1.0):
+    def move_zoom(self, direction: int, speed: float = 2.0):
         """Zoom out (-1) or in (1)"""
         if not self.connected:
             return
