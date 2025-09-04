@@ -18,6 +18,8 @@ def finetune():
         rect=True,
         batch=batch_size,
         name='ice_hockey_detector',
+        plots=True,
+        save_period=20,
         verbose=True
     )
     print("Training Complete")
