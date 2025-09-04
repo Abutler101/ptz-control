@@ -1,0 +1,8 @@
+# ice_hockey_data.yaml
+path: /Users/pmai281/Developer/ptz-control/experiments/yolo_finetune/dataset
+train: images/train
+val: images/val
+
+# Classes
+nc: 3
+names: ["player","puck","referee"]

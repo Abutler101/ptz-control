@@ -10,14 +10,15 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 
-MODEL_PATH = Path(__file__).parent.joinpath("yolo11n.pt")
+# MODEL_PATH = Path(__file__).parent.joinpath("yolo11n.pt")
+MODEL_PATH = Path(__file__).parent.joinpath("fine-tuned-70-epoch-850-images.pt")
 TEST_VIDEO_PATH = Path(__file__).parent.joinpath("test.mp4")
 
 PAN_SENSITIVITY = 0.05  # How much camera moves per pixel deviation
 TILT_SENSITIVITY = 0.05
 ZOOM_SENSITIVITY = 100  # Pixels deviation for one zoom step
-PAN_DEAD_ZONE = 500      # Pixels around center where camera doesn't move horizontally
-TILT_DEAD_ZONE = 100     # Pixels around center where camera doesn't move vertically
+PAN_DEAD_ZONE = 250      # Pixels around center where camera doesn't move horizontally
+TILT_DEAD_ZONE = 250     # Pixels around center where camera doesn't move vertically
 ZOOM_IN_THRESHOLD = 0.6  # If average player bounding box fills this % of frame width, zoom out
 ZOOM_OUT_THRESHOLD = 0.2 # If average player bounding box fills this % of frame width, zoom in
 
@@ -47,7 +48,7 @@ def zoom_camera(direction: ZoomDirection, steps: int):
 def main():
     detector = YOLO(MODEL_PATH)
     class_names = detector.names
-    target_class_id = [k for k, v in class_names.items() if v == "person"][0]
+    target_class_id = [k for k, v in class_names.items() if v == "player"][0]
 
     cap = cv2.VideoCapture(str(TEST_VIDEO_PATH))
     frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
