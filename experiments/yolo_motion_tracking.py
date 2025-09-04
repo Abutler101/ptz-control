@@ -60,9 +60,10 @@ def main():
     print(f"Processing video: ({frame_width}x{frame_height} @ {fps:.2f} FPS)")
 
     frame_count = 0
-    start_time = time.perf_counter()
+
 
     while True:
+        start_time = time.perf_counter()
         ret, frame = cap.read()
         if not ret:
             print("End of video stream or error reading frame.")
@@ -157,7 +158,10 @@ def main():
             (0, 255, 255),
             1
         )
-
+        fps = 1 / (time.perf_counter() - start_time)
+        cv2.putText(frame, "{:.2f}".format(fps),
+                    (40,40),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 0, 0), 3)
         cv2.imshow("Tracking", frame)
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
