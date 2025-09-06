@@ -170,66 +170,43 @@ class PTZControlApp:
         self.update_preset_buttons()
 
     def connect_camera(self):
-        """Connect to the PTZ camera"""
         ip = self.ip_entry.get().strip()
         if not ip:
             messagebox.showerror("Error", "Enter a valid IP address")
             return
 
-        def connect_thread():
-            while self.running:
-                try:
-                    self.ptz_controller = PTZController(ip)
-                    if self.ptz_controller.check_connection():
-                        self.root.after(
-                            0,
-                            lambda: self.status_label.config(
-                                text="Connected", foreground="green"
-                            ),
-                        )
-                        self.root.after(
-                            0, lambda: self.connect_btn.config(text="Disconnect")
-                        )
-                    else:
-                        self.root.after(
-                            0,
-                            lambda: messagebox.showerror(
-                                "Error", "Failed to connect to camera"
-                            ),
-                        )
-                except Exception as e:
-                    self.root.after(
-                        0,
-                        lambda: messagebox.showerror(
-                            "Error", f"Connection failed: {str(e)}"
-                        ),
-                    )
-                time.sleep(20)
-
+        # If already connected, disconnect
         if self.ptz_controller and self.ptz_controller.connected:
-            self.status_label.config(text="Disconnected", foreground="red")
-            self.connect_btn.config(text="Connect")
-        else:
-            self.connection_thread = threading.Thread(
-                target=connect_thread, daemon=True
-            ).start()
+            self.disconnect_camera()
+            return
 
-            time.sleep(0.5)
-            if self.ptz_controller and self.ptz_controller.connected:
-                try:
-                    self.motion_tracker = MotionTracker(
-                        feed=RTSPFeed(ip, 554, "mediainput/h264/stream_2"),
-                        mode=TrackingMode(self.track_mode_select.get().split(".")[1]),
-                        cam_controller=self.ptz_controller
-                    )
-                except Exception as e:
-                    self.root.after(
-                        0,
-                        lambda: messagebox.showerror(
-                            "Error", f"Connection failed: {str(e)}"
-                        ),
-                    )
+        def connect_once():
+            try:
+                self.ptz_controller = PTZController(ip)
+                if self.ptz_controller.check_connection():
+                    self.root.after(0, lambda: self.status_label.config(text="Connected", foreground="green"))
+                    self.root.after(0, lambda: self.connect_btn.config(text="Disconnect"))
+                else:
+                    self.root.after(0, lambda: messagebox.showerror("Error", "Failed to connect to camera"))
+            except Exception as e:
+                self.root.after(0, lambda: messagebox.showerror("Error", f"Connection failed: {str(e)}"))
 
+        # Run connection attempt once, not in a loop
+        threading.Thread(target=connect_once, daemon=True).start()
+
+    def disconnect_camera(self):
+        """Properly disconnect and cleanup resources"""
+        if self.motion_tracker:
+            self.motion_tracker.stop_tracking()
+            if hasattr(self.motion_tracker, 'rtsp_feed'):
+                self.motion_tracker.rtsp_feed.release()
+
+        if self.ptz_controller:
+            self.ptz_controller.connected = False
+            self.ptz_controller = None
+
+        self.status_label.config(text="Disconnected", foreground="red")
+        self.connect_btn.config(text="Connect")
 
     def manual_tracking_override(func):
         """
@@ -254,7 +231,12 @@ class PTZControlApp:
     def toggle_tracking(self):
         """Toggle auto-tracking on/off"""
         if self.motion_tracker is None:
-            return
+            # Initialize tracker with connection sharing
+            self.motion_tracker = MotionTracker(
+                feed=RTSPFeed(self.ptz_controller.ip_address, 554, "mediainput/h264/stream_2"),
+                mode=TrackingMode(self.track_mode_select.get().split(".")[1]),
+                cam_controller=self.ptz_controller
+            )
 
         if self.tracking_enabled:
             # Disable auto-tracking
@@ -413,8 +395,7 @@ class PTZControlApp:
                     f"Pan: {pos.pan:.1f} | Tilt: {pos.tilt:.1f} | Zoom: {pos.zoom:.1f}"
                 )
                 self.root.after(0, lambda: self.pos_label.config(text=pos_text))
-
-            time.sleep(0.1)  # Update 10 times per second
+            time.sleep(20)  # Update 3 times per minute
 
     def load_presets(self):
         """Load presets from file"""
