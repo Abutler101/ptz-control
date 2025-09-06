@@ -11,7 +11,8 @@ import numpy as np
 from ultralytics import YOLO
 
 # MODEL_PATH = Path(__file__).parent.joinpath("yolo11n.pt")
-MODEL_PATH = Path(__file__).parent.joinpath("fine-tuned-70-epoch-850-images.pt")
+# MODEL_PATH = Path(__file__).parent.joinpath("fine-tuned-70-epoch-850-images.pt")
+MODEL_PATH = Path(__file__).parent.joinpath("fine-tuned-200-epoch-1000-images.pt")
 TEST_VIDEO_PATH = Path(__file__).parent.joinpath("test.mp4")
 
 PAN_SENSITIVITY = 0.05  # How much camera moves per pixel deviation
