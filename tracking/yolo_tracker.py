@@ -26,11 +26,15 @@ class MotionTracker:
     # Deviation sensitivities - how far to move for a pixel deviation
     pan_sensitivity: float
     tilt_sensitivity: float
-    zoom_sensitivity: int  # Pixel deviation for a single zoom step
+    zoom_sensitivity: int
 
     # Zoom thresholds - If composite bounding box fills x% of frame zoom in/out
     zoom_in_threshold: float
     zoom_out_threshold: float
+
+    # Deadzones - allow for good enough centering
+    pan_dead_zone: int
+    tilt_dead_zone: int
 
     def __init__(self, feed: RTSPFeed, cam_controller: PTZController):
         self.rtsp_feed = feed
@@ -39,9 +43,11 @@ class MotionTracker:
 
         self.pan_sensitivity = 0.05
         self.tilt_sensitivity = 0.05
-        self.zoom_sensitivity = 100
-        self.zoom_in_threshold = 0.2
+        self.zoom_sensitivity = 50
+        self.zoom_in_threshold = 0.3
         self.zoom_out_threshold = 0.6
+        self.pan_dead_zone = 125
+        self.tilt_dead_zone = 125
 
     def is_tracking(self) -> bool:
         return self._activate_tracking.is_set()
@@ -56,6 +62,7 @@ class MotionTracker:
         self.frame_h, self.frame_w = frame.shape[:2]
         self.frame_center_x = self.frame_w / 2
         self.frame_center_y = self.frame_h / 2
+        self.frame_area = self.frame_w * self.frame_h
         self.detector = YOLO(MODEL_PATH)
         class_names = self.detector.names
         self.player_class_id = [k for k, v in class_names.items() if v == "player"][0]
@@ -81,6 +88,58 @@ class MotionTracker:
 
                     if class_id == self.player_class_id:
                         x1, y1, x2, y2 = map(int, box)
+                        # Get centroid of the player's bounding box
+                        centroid_x = (x1 + x2) / 2
+                        centroid_y = (y1 + y2) / 2
+                        player_centroids.append((centroid_x, centroid_y))
+                        player_bbox_widths.append(x2 - x1)
+
+                if player_centroids:
+                    # Calculate the average centroid of all detected players
+                    avg_centroid_x = np.mean([c[0] for c in player_centroids])
+                    avg_centroid_y = np.mean([c[1] for c in player_centroids])
+
+                    # Calculate combined bounding box area
+                    centroid_array = np.array(player_centroids)
+                    min_coords = np.min(centroid_array, axis=0)
+                    max_coords = np.max(centroid_array, axis=0)
+                    total_area = (max_coords[0] - min_coords[0]) * (max_coords[1] - min_coords[1])
+
+                    # Calculate deviation from frame center
+                    delta_x = avg_centroid_x - self.frame_center_x
+                    delta_y = avg_centroid_y - self.frame_center_y
+
+                    # Move to correct for delta
+                    if abs(delta_x) > self.pan_dead_zone and abs(delta_y) > self.tilt_dead_zone:
+                        # Needs to be a composite correction
+                        self._move_camera(
+                            (delta_x*-1*self.pan_sensitivity, delta_y*self.tilt_sensitivity)
+                        )
+                    elif abs(delta_x) > self.pan_dead_zone:
+                        # Need to correct pan only
+                        self._move_camera(
+                            (delta_x*-1*self.pan_sensitivity,0)
+                        )
+                    elif abs(delta_y) > self.tilt_dead_zone:
+                        # Need to correct tilt only
+                        self._move_camera(
+                            (0,delta_y*self.tilt_sensitivity)
+                        )
+
+                    # Zoom to correct for under or overfill
+                    fill_ratio = total_area / self.frame_area
+                    if fill_ratio < self.zoom_in_threshold:
+                        # Need to zoom in
+                        self._zoom_camera(
+                            ZoomDirection.IN,
+                            max(1, int((fill_ratio - self.zoom_in_threshold) * self.zoom_sensitivity))
+                        )
+                    elif fill_ratio > self.zoom_out_threshold:
+                        # Need to zoom out
+                        self._zoom_camera(
+                            ZoomDirection.OUT,
+                            max(1, int((self.zoom_out_threshold - fill_ratio) * self.zoom_sensitivity))
+                        )
 
     def _move_camera(self, amounts: Tuple[float, float]):
         """
