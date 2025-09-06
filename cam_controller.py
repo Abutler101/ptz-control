@@ -104,7 +104,30 @@ class PTZController:
         tilt_str = f"APS{current_pan}{target_tilt}1D2"
         move_response = requests.get(f"http://{self.ip_address}/cgi-bin/aw_ptz?cmd=%23{tilt_str}&res=1")
         if move_response.status_code != 200 or move_response.text.upper() != tilt_str:
-            print(f"Failed to take Pan Step to {target_tilt}")
+            print(f"Failed to take Tilt Step to {target_tilt}")
+        self.refresh_position()
+
+    def move_composite(self, pan_dir: int, tilt_dir: int, pan_amount: float, tilt_amount: float):
+        """Move some amount in both pan and tilt"""
+        if not self.connected:
+            return
+        target_pan: str
+        target_tilt: str
+
+        target_pan_base_10 = int(self.current_position.pan + ((pan_dir * 256) * pan_amount)) + 2
+        target_pan_base_10 = max(min(target_pan_base_10, 65535), 0)
+        raw_pan_hex = hex(target_pan_base_10).replace("0x", "")
+        target_pan = (raw_pan_hex[0:2] + "00").upper()
+
+        target_tilt_base_10 = int(self.current_position.tilt + ((tilt_dir * 256) * tilt_amount)) + 2
+        target_tilt_base_10 = max(min(target_tilt_base_10, 65535), 0)
+        raw_tilt_hex = hex(target_tilt_base_10).replace("0x", "")
+        target_tilt = (raw_tilt_hex[0:2] + "00").upper()
+
+        composite_move_str = f"APS{target_pan}{target_tilt}1D2"
+        move_response = requests.get(f"http://{self.ip_address}/cgi-bin/aw_ptz?cmd=%23{composite_move_str}&res=1")
+        if move_response.status_code != 200 or move_response.text.upper() != composite_move_str:
+            print(f"Failed to take composite move to Pan:{target_pan} Tilt:{target_tilt}")
         self.refresh_position()
 
     def move_zoom(self, direction: int, speed: float = 2.0):
