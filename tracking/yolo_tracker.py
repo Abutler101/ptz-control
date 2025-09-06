@@ -72,7 +72,8 @@ class MotionTracker:
             activate_tracking_event.wait()
             ret, frame = self.rtsp_feed.read()
             if not ret:
-                activate_tracking_event.set()
+                activate_tracking_event.clear()
+                continue
             detection_results = self.detector(frame, conf=0.8, iou=0.4, verbose=False)
 
             player_centroids = []
