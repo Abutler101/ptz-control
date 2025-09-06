@@ -146,10 +146,33 @@ class MotionTracker:
         amounts[0] - pan direction and step size (negative is move to right by amount)
         amounts[1] - tilt direction and step size (negative is move up by amount)
         """
-        ...
+        if abs(amounts[0]) > 0 and abs(amounts[1]) > 0:
+            self.cam_control.move_composite(
+                pan_dir=-1 if amounts[0] < 0 else 1,
+                tilt_dir=-1 if amounts[1] < 0 else 1,
+                pan_amount=abs(amounts[0]),
+                tilt_amount=abs(amounts[1])
+            )
+        else:
+            if amounts[0] < 0:
+                # Move Right
+                self.cam_control.move_pan(-1, abs(amounts[0]))
+            elif amounts[0] > 0:
+                # Move Left
+                self.cam_control.move_pan(1, amounts[0])
+
+            elif amounts[1] < 0:
+                # Move Up
+                self.cam_control.move_tilt(-1, abs(amounts[1]))
+            elif amounts[1] > 0:
+                # Move Down
+                self.cam_control.move_tilt(1, amounts[1])
 
     def _zoom_camera(self, direction: ZoomDirection, amount: int):
-        ...
+        if direction == ZoomDirection.IN:
+            self.cam_control.move_zoom(1, amount)
+        else:
+            self.cam_control.move_zoom(-1, amount)
 
     def start_tracking(self):
         def _tracking_thread(tracking_activation_event: threading.Event):
