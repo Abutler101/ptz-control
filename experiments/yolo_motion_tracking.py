@@ -1,7 +1,3 @@
-"""
-TODO: Need to fine-tune detector for hockey players
-"""
-
 from enum import Enum
 import time
 from pathlib import Path
@@ -61,7 +57,6 @@ def main():
     print(f"Processing video: ({frame_width}x{frame_height} @ {fps:.2f} FPS)")
 
     frame_count = 0
-
 
     while True:
         start_time = time.perf_counter()
