@@ -1,6 +1,5 @@
 import threading
 import time
-from enum import Enum
 from typing import Optional
 
 import cv2
@@ -8,23 +7,7 @@ import numpy as np
 
 from cam_controller import PTZController
 from rtsp_feed import RTSPFeed
-
-
-class TrackingMode(str, Enum):
-    LARGEST = "LARGEST"
-    MULTI = "MULTI"
-
-
-class Direction(Enum):
-    LEFT = "LEFT"
-    RIGHT = "RIGHT"
-    UP = "UP"
-    DOWN = "DOWN"
-
-
-class ZoomDirection(Enum):
-    IN = "IN"
-    OUT = "OUT"
+from models import TrackingMode, Direction, ZoomDirection
 
 
 class MotionTracker:

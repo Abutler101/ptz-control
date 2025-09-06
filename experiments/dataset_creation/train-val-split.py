@@ -52,8 +52,8 @@ def split_dataset(
 
 if __name__ == "__main__":
     split_dataset(
-        images_dir=Path("/Users/pmai281/Downloads/project-3-at-2025-09-03-08-55-76b6dfe7/images"),
-        labels_dir=Path("/Users/pmai281/Downloads/project-3-at-2025-09-03-08-55-76b6dfe7/labels"),
+        images_dir=Path("/Users/pmai281/Downloads/project-3-at-2025-09-04-10-55-9d08fa7f/images"),
+        labels_dir=Path("/Users/pmai281/Downloads/project-3-at-2025-09-04-10-55-9d08fa7f/labels"),
         output_dir=Path("/Users/pmai281/Developer/ptz-control/experiments/yolo_finetune/dataset"),
         val_ratio=0.2,  # 20% validation
     )

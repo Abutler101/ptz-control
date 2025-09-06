@@ -13,9 +13,9 @@ import json
 import os
 
 from cam_controller import PTZController
-from holdable_button import HoldableButton
-from models import PresetLocation
-from motion_tracker import TrackingMode, MotionTracker
+from ui_elements.holdable_button import HoldableButton
+from models import PresetLocation, TrackingMode
+from tracking.subtraction_tracker import MotionTracker
 from rtsp_feed import RTSPFeed
 
 
