@@ -1,3 +1,4 @@
 .idea
 experiments/dataset_creation/frames
 experiments/dataset_creation/dataset
+experiments/yolo_finetune/dataset
