@@ -15,7 +15,8 @@ import os
 from cam_controller import PTZController
 from ui_elements.holdable_button import HoldableButton
 from models import PresetLocation, TrackingMode
-from tracking.subtraction_tracker import MotionTracker
+# from tracking.subtraction_tracker import MotionTracker
+from tracking.yolo_tracker import MotionTracker
 from rtsp_feed import RTSPFeed
 
 
@@ -217,7 +218,7 @@ class PTZControlApp:
             if self.ptz_controller and self.ptz_controller.connected:
                 try:
                     self.motion_tracker = MotionTracker(
-                        feed=RTSPFeed(ip, 554, "mediainput/h264/stream_1"),
+                        feed=RTSPFeed(ip, 554, "mediainput/h264/stream_2"),
                         mode=TrackingMode(self.track_mode_select.get().split(".")[1]),
                         cam_controller=self.ptz_controller
                     )
@@ -244,7 +245,8 @@ class PTZControlApp:
             result = func(*args, **kwargs)
 
             if was_tracking:
-                args[0].motion_tracker.back_sub.clear()
+                if hasattr(args[0].motion_tracker, "back_sub"):
+                    args[0].motion_tracker.back_sub.clear()
                 args[0].toggle_tracking()
             return result
         return wrapper

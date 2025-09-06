@@ -36,7 +36,7 @@ class MotionTracker:
     pan_dead_zone: int
     tilt_dead_zone: int
 
-    def __init__(self, feed: RTSPFeed, cam_controller: PTZController):
+    def __init__(self, feed: RTSPFeed, mode: TrackingMode, cam_controller: PTZController):
         self.rtsp_feed = feed
         self.cam_control = cam_controller
         self.track_thread_created = False
