@@ -1,4 +1,5 @@
 import threading
+import time
 from typing import Optional, Tuple
 
 import cv2
@@ -26,8 +27,14 @@ class RTSPFeed:
             self.cap.release()
 
     def _update_frame(self) -> None:
+        max_fps = 20
+        target_frame_time = 1/max_fps
+        last_frame_at: float = 0.0
         while self.is_running:
+            if time.perf_counter() < last_frame_at + target_frame_time:
+                time.sleep((last_frame_at + target_frame_time) - time.perf_counter())
             ret, frame = self.cap.read()
+            last_frame_at = time.perf_counter()
             with self.lock:
                 self.frame = (ret, frame)
 
