@@ -41,8 +41,8 @@ class MotionTracker:
         self.cam_control = cam_controller
         self.track_thread_created = False
 
-        self.pan_sensitivity = 0.05
-        self.tilt_sensitivity = 0.05
+        self.pan_sensitivity = 0.03
+        self.tilt_sensitivity = 0.03
         self.zoom_sensitivity = 50
         self.zoom_in_threshold = 0.3
         self.zoom_out_threshold = 0.6
