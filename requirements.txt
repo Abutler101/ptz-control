@@ -2,3 +2,4 @@ keyboard==0.13.5
 requests==2.32.4
 opencv-python==4.12.0.88
 ultralytics==8.3.191
+nuitka==2.7.14
